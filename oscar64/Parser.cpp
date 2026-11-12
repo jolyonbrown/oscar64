@@ -8339,7 +8339,21 @@ Expression* Parser::ParseSimpleExpression(bool lhs, bool tid)
 		}
 		else
 		{
-			rexp = ParseParenthesisExpression();
+			if (mScanner->mToken == TK_OPEN_PARENTHESIS)
+			{
+				rexp = ParseParenthesisExpression();
+				// sizeof (expr)[0], sizeof (p)->m: postfix operators belong to an expression operand
+				if (rexp->mType != EX_TYPE)
+					rexp = ParsePostfixExpression(false, rexp);
+			}
+			else
+			{
+				// sizeof unary-expression: binds tighter than any binary operator
+				Location	loc(mScanner->mLocation);
+				rexp = ParsePrefixExpression(false);
+				if (rexp->mType == EX_TYPE || rexp->mType == EX_AGGREGATE)
+					mErrors->Error(loc, EERR_SYNTAX, "'(' expected");
+			}
 			Declaration* btype;
 			if (rexp->mDecType->IsReference())
 				btype = rexp->mDecType->mBase;
