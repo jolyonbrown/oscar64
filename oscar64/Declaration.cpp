@@ -1735,6 +1735,56 @@ Declaration* Declaration::NonRefBase(void)
 		return this;
 }
 
+// The variable or struct member a DT_VARIABLE_REF into a global aggregate refers to,
+// found by its offset, or nullptr if the offset cannot be resolved to a member (a
+// union, or a member of an anonymous union). Function pointers are tracked by this
+// declaration, whose type may have been rewritten by the function pointer optimizer
+// after the expression was built
+Declaration* Declaration::RefDeclaration(void)
+{
+	Declaration* dec = mBase;
+	Declaration* type = dec->mBase;
+	int offset = mOffset;
+
+	for (;;)
+	{
+		if (type->mType == DT_TYPE_ARRAY && type->mBase->mSize > 0)
+		{
+			offset %= type->mBase->mSize;
+			type = type->mBase;
+		}
+		else if (type->mType == DT_TYPE_STRUCT)
+		{
+			// bit fields share bytes with their neighbours, so they span their bits, not their type
+			Declaration* mdec = type->mParams;
+			while (mdec && !(mdec->mType == DT_ELEMENT && !(mdec->mFlags & DTF_STATIC) && offset >= mdec->mOffset &&
+				offset < mdec->mOffset + (mdec->mBits ? (mdec->mShift + mdec->mBits + 7) / 8 : mdec->mSize)))
+				mdec = mdec->mNext;
+			if (mdec)
+			{
+				dec = mdec;
+				offset -= mdec->mOffset;
+				type = mdec->mBase;
+			}
+			else
+			{
+				// not an own member, look in the base classes
+				Declaration* bcdec = type->mBase;
+				while (bcdec && !(bcdec->mType == DT_BASECLASS && offset >= bcdec->mOffset && offset < bcdec->mOffset + bcdec->mBase->mSize))
+					bcdec = bcdec->mNext;
+				if (!bcdec)
+					return nullptr;
+				offset -= bcdec->mOffset;
+				type = bcdec->mBase;
+			}
+		}
+		else if (type->mType == DT_TYPE_UNION)
+			return nullptr;
+		else
+			return dec;
+	}
+}
+
 bool Declaration::IsAuto(void) const
 {
 	return (mType == DT_TYPE_AUTO || IsReference() && mBase->mType == DT_TYPE_AUTO);

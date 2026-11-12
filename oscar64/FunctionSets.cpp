@@ -302,6 +302,7 @@ Declaration* FunctionSets::Analyze(Expression* exp, Declaration* procDec)
 	case EX_VARIABLE:
 	{
 		Declaration* vdec = exp->mDecValue;
+		Declaration* mdec = vdec->mType == DT_VARIABLE_REF ? vdec->RefDeclaration() : nullptr;
 		while (vdec->mType == DT_VARIABLE_REF)
 			vdec = vdec->mBase;
 
@@ -310,7 +311,7 @@ Declaration* FunctionSets::Analyze(Expression* exp, Declaration* procDec)
 			AnalyzeGlobalVariable(vdec);
 		}
 
-		return vdec;
+		return mdec ? mdec : vdec;
 	}
 	case EX_INITIALIZATION:
 	case EX_ASSIGNMENT:

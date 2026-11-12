@@ -12,6 +12,24 @@ rem @echo off
 @call :testf funcvaropt.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test funcptrmembertest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :testf funcptrmembertest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :test funcptrmemberaddrtest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :test funcptrmemberconsttest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :testfuncptrmemberconstconstraints
+@if %errorlevel% neq 0 goto :error
+
+@call :test funcptrmemberbasetest.cpp
+@if %errorlevel% neq 0 goto :error
+
 @call :test warningstacktest.c
 @if %errorlevel% neq 0 goto :error
 
@@ -579,6 +597,29 @@ exit /b %errorlevel%
 	@exit /b 1
 )
 @del c23enumtest.log
+@exit /b 0
+
+:testfuncptrmemberconstconstraints
+@for %%M in (-n -bc) do @for %%C in (GLOBAL LOCAL STATIC_LOCAL POINTER ARRAY NESTED ARRAY_OF_STRUCTS) do (
+	@call :testfuncptrmemberconstinvalid %%M %%C
+	@if errorlevel 1 @exit /b 1
+)
+@exit /b 0
+
+:testfuncptrmemberconstinvalid
+..\bin\oscar64 -g %~1 -dFUNCPTR_CONST_%~2 -o=funcptrmemberconstinvalid.prg funcptrmemberconsttest.c > funcptrmemberconsttest.log 2>&1
+@if %errorlevel% neq 20 (
+	@type funcptrmemberconsttest.log
+	@del funcptrmemberconsttest.log
+	@exit /b 1
+)
+@findstr /c:"error 3014: Cannot assign to const type" funcptrmemberconsttest.log > nul
+@if %errorlevel% neq 0 (
+	@type funcptrmemberconsttest.log
+	@del funcptrmemberconsttest.log
+	@exit /b 1
+)
+@del funcptrmemberconsttest.log
 @exit /b 0
 
 :testenumrangeconstraints
