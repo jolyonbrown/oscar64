@@ -340,7 +340,7 @@ public:
 	ExpandingArray<NativeCodeBasicBlock*>	mEntryBlocks;
 
 	int							mOffset, mSize, mPlace, mNumEntries, mNumEntered, mFrameOffset, mTemp;
-	bool						mPlaced, mCopied, mKnownShortBranch, mBypassed, mAssembled, mNoFrame, mVisited, mLoopHead, mVisiting, mLocked, mPatched, mPatchFail, mPatchChecked, mPatchUsed, mPatchStart, mPatchLoop, mPatchLoopChanged, mPatchExit;
+	bool						mPlaced, mCopied, mKnownShortBranch, mBypassed, mAssembled, mNoFrame, mVisited, mLoopHead, mVisiting, mLocked, mPatched, mPatchFail, mPatchChecked, mPatchUsed, mPatchStart, mPatchLoop, mPatchLoopChanged, mPatchExit, mPatchRecheck, mPatchRejoin;
 	bool						mEntryRegA, mEntryRegX, mEntryRegY, mExitRegA, mExitRegX, mChecked;
 	NativeCodeBasicBlock	*	mDominator, * mSameBlock;
 
@@ -804,6 +804,7 @@ public:
 	bool JoinConditionSequence(void);
 
 	bool CanJoinEntryLoadStoreZP(int saddr, int daddr);
+	bool CanJoinEntryLoadStoreZP(int saddr, int daddr, ExpandingArray<NativeCodeBasicBlock*>& visited);
 	bool DoJoinEntryLoadStoreZP(int saddr, int daddr);
 	bool JoinEntryLoadStoreZP(void);
 
@@ -880,6 +881,7 @@ public:
 	bool BackwardReplaceZeroPage(int at, int from, int to, bool diamond);
 
 	bool IsSameRegisterSource(const NativeCodeInstruction& rins, int nloops = 0) const;
+	bool IsSameRegisterSource(const NativeCodeInstruction& rins, int nloops, ExpandingArray<const NativeCodeBasicBlock*>& visited, ExpandingArray<int>& vloops) const;
 	bool PartialBackwardValuePropagation(void);
 	bool BackwardValuePropagation(void);
 	bool HoistCommonLoads(void);
@@ -1052,6 +1054,7 @@ public:
 	// ains : instruction loading original data
 	// cycles : max number of cycles saving
 	bool CheckSingleUseGlobalLoadStruct(const NativeCodeBasicBlock* block, const NativeCodeInstruction& rins, int at, const NativeCodeInstruction& ains, bool cleared, bool poisoned);
+	bool CheckSingleUseGlobalLoadStructLoop(const NativeCodeBasicBlock* block, const NativeCodeInstruction& rins, const NativeCodeBasicBlock* target, ExpandingArray<NativeCodeBasicBlock*>& visited);
 	bool PatchSingleUseGlobalLoadStruct(const NativeCodeBasicBlock* block, const NativeCodeInstruction& rins, int at, const NativeCodeInstruction& ains);
 
 	// reg : base register pair to replace

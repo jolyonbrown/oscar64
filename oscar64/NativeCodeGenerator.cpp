@@ -31570,6 +31570,21 @@ void NativeCodeBasicBlock::MarkLive(uint32 live, int from, int to)
 
 bool NativeCodeBasicBlock::CanJoinEntryLoadStoreZP(int saddr, int daddr)
 {
+	ExpandingArray<NativeCodeBasicBlock*>	visited;
+	return CanJoinEntryLoadStoreZP(saddr, daddr, visited);
+}
+
+bool NativeCodeBasicBlock::CanJoinEntryLoadStoreZP(int saddr, int daddr, ExpandingArray<NativeCodeBasicBlock*>& visited)
+{
+	// A block seen before in this check has already been verified together
+	// with everything behind it, a failure would have ended the check.
+	// Without this the check visits a block once per path from the start
+	// block, which is exponential in the number of consecutive conditionals
+	// in between.
+	if (visited.IndexOf(this) != -1)
+		return true;
+	visited.Push(this);
+
 	mChecked = true;
 
 	// Avoid moving code into loops
@@ -31599,7 +31614,7 @@ bool NativeCodeBasicBlock::CanJoinEntryLoadStoreZP(int saddr, int daddr)
 	{
 		for (int i = 0; i < mEntryBlocks.Size(); i++)
 		{
-			if (!mEntryBlocks[i]->CanJoinEntryLoadStoreZP(saddr, daddr))
+			if (!mEntryBlocks[i]->CanJoinEntryLoadStoreZP(saddr, daddr, visited))
 				return false;
 		}
 
@@ -35880,11 +35895,46 @@ bool NativeCodeBasicBlock::PatchSingleUseGlobalLoad(const NativeCodeBasicBlock* 
 }
 
 
+bool NativeCodeBasicBlock::CheckSingleUseGlobalLoadStructLoop(const NativeCodeBasicBlock* block, const NativeCodeInstruction& rins, const NativeCodeBasicBlock* target, ExpandingArray<NativeCodeBasicBlock*>& visited)
+{
+	if (visited.IndexOf(this) != -1)
+		return false;
+	visited.Push(this);
+
+	if (this == block)
+		return false;
+
+	for (int i = 0; i < mIns.Size(); i++)
+	{
+		const NativeCodeInstruction& ins(mIns[i]);
+
+		if (ins.SameEffectiveAddress(rins) && (ins.mType == ASMIT_STA || ins.mType == ASMIT_STX || ins.mType == ASMIT_STY))
+			return mTrueJump == target || mFalseJump == target;
+	}
+
+	if (mTrueJump && mTrueJump->mPatchFail && mTrueJump->CheckSingleUseGlobalLoadStructLoop(block, rins, target, visited))
+		return true;
+	if (mFalseJump && mFalseJump->mPatchFail && mFalseJump->CheckSingleUseGlobalLoadStructLoop(block, rins, target, visited))
+		return true;
+
+	return false;
+}
+
 bool NativeCodeBasicBlock::CheckSingleUseGlobalLoadStruct(const NativeCodeBasicBlock* block, const NativeCodeInstruction& rins, int at, const NativeCodeInstruction& ains, bool cleared, bool poisoned)
 {
 	bool	ok = true;
-	if (!mPatched || mPatchFail && !cleared)
+
+	// A block first entered after an overwrite is checked a second time when
+	// a path reaches it without one, and that second check is needed once.
+	// Repeating it for every such path is exponential in the number of
+	// consecutive conditionals behind the block, and never ends when they
+	// form a loop.
+	if (!mPatched || mPatchFail && !cleared && !mPatchRecheck)
 	{
+		bool	recheck = mPatched;
+		if (recheck)
+			mPatchRecheck = true;
+
 		if (mPatchFail || this != block && !IsDominatedBy(block))
 			poisoned = true;
 
@@ -35935,6 +35985,28 @@ bool NativeCodeBasicBlock::CheckSingleUseGlobalLoadStruct(const NativeCodeBasicB
 		{
 			mPatchUsed = used || !cleared;
 
+			if (recheck)
+			{
+				// Repeated second checks of the blocks behind this one failed when
+				// one of them overwrites the variable and then leads back here while
+				// this check is still running. They are not repeated any more, so
+				// look for that case here: the overwriting block marks the blocks it
+				// leads to, and a marked block searches for it.
+				if (cleared)
+				{
+					if (mTrueJump && mTrueJump->mPatchFail && !mTrueJump->mPatchRecheck)
+						mTrueJump->mPatchRejoin = true;
+					if (mFalseJump && mFalseJump->mPatchFail && !mFalseJump->mPatchRecheck)
+						mFalseJump->mPatchRejoin = true;
+				}
+				else if (mPatchRejoin)
+				{
+					ExpandingArray<NativeCodeBasicBlock*>	visited;
+					if (CheckSingleUseGlobalLoadStructLoop(block, rins, this, visited))
+						return false;
+				}
+			}
+
 			if (mTrueJump && !mTrueJump->CheckSingleUseGlobalLoadStruct(block, rins, 0, ains, cleared, poisoned))
 				return false;
 			if (mFalseJump && !mFalseJump->CheckSingleUseGlobalLoadStruct(block, rins, 0, ains, cleared, poisoned))
@@ -35943,7 +36015,11 @@ bool NativeCodeBasicBlock::CheckSingleUseGlobalLoadStruct(const NativeCodeBasicB
 			mPatchUsed = used || (mTrueJump && mTrueJump->mPatchUsed) || (mFalseJump && mFalseJump->mPatchUsed);
 		}
 	}
-	else if ((mPatchUsed && (poisoned || cleared)))
+	// A block whose second check is still running has mPatchUsed set, and a
+	// completed second check has left it clear. Every arrival inside a second
+	// check is poisoned or cleared, so it fails here as it did before; the
+	// mPatchFail term is defensive and does not change the result.
+	else if (mPatchUsed && (poisoned || cleared || mPatchFail))
 		return false;
 
 	return true;
@@ -44649,6 +44725,24 @@ bool NativeCodeBasicBlock::ShortcutZeroPageCopyUp(NativeCodeProcedure* nproc)
 
 bool NativeCodeBasicBlock::IsSameRegisterSource(const NativeCodeInstruction& rins, int nloops) const
 {
+	ExpandingArray<const NativeCodeBasicBlock*>	visited;
+	ExpandingArray<int>							vloops;
+	return IsSameRegisterSource(rins, nloops, visited, vloops);
+}
+
+bool NativeCodeBasicBlock::IsSameRegisterSource(const NativeCodeInstruction& rins, int nloops, ExpandingArray<const NativeCodeBasicBlock*>& visited, ExpandingArray<int>& vloops) const
+{
+	// The result depends only on the block and the remaining loop count, and
+	// a failure anywhere ends the whole search, so a block seen before with
+	// the same count has already been verified. Without this check the
+	// search visits a block once per path from the start block, which is
+	// exponential in the number of consecutive conditionals in between.
+	for (int i = 0; i < visited.Size(); i++)
+		if (visited[i] == this && vloops[i] == nloops)
+			return true;
+	visited.Push(this);
+	vloops.Push(nloops);
+
 	for (int i = mIns.Size() - 1; i >= 0; i--)
 	{
 		const NativeCodeInstruction& ins(mIns[i]);
@@ -44684,7 +44778,7 @@ bool NativeCodeBasicBlock::IsSameRegisterSource(const NativeCodeInstruction& rin
 	}
 
 	for (int i = 0; i < mEntryBlocks.Size(); i++)
-		if (!mEntryBlocks[i]->IsSameRegisterSource(rins, nloops))
+		if (!mEntryBlocks[i]->IsSameRegisterSource(rins, nloops, visited, vloops))
 			return false;
 	return true;
 }
@@ -75855,6 +75949,8 @@ void NativeCodeProcedure::ResetPatched(void)
 		b->mPatched = false;
 		b->mPatchFail = false;
 		b->mPatchUsed = false;
+		b->mPatchRecheck = false;
+		b->mPatchRejoin = false;
 		b->mPatchChecked = false;
 		b->mPatchStart = false;
 		b->mPatchLoop = false;
