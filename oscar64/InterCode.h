@@ -651,6 +651,7 @@ public:
 	bool IsDominator(InterCodeBasicBlock* block);
 	bool IsDirectDominatorBlock(InterCodeBasicBlock* block);
 	bool IsDirectLoopPathBlock(InterCodeBasicBlock* block);
+	bool IsDirectLoopPathBlock(InterCodeBasicBlock* block, ExpandingArray<InterCodeBasicBlock*>& visited);
 	bool CollectBlocksToDominator(InterCodeBasicBlock* dblock, ExpandingArray<InterCodeBasicBlock*>& body);
 
 	void MarkRelevantStatics(void);

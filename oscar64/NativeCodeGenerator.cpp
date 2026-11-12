@@ -48313,6 +48313,21 @@ bool NativeCodeBasicBlock::OffsetValueForwarding(const ValueNumberingDataSet& da
 
 bool NativeCodeBasicBlock::CheckLoopIndexXRegisters(NativeCodeBasicBlock* head, int xreg)
 {
+	ExpandingArray<NativeCodeBasicBlock*>	visited;
+	return CheckLoopIndexXRegisters(head, xreg, visited);
+}
+
+bool NativeCodeBasicBlock::CheckLoopIndexXRegisters(NativeCodeBasicBlock* head, int xreg, ExpandingArray<NativeCodeBasicBlock*>& visited)
+{
+	// A block seen before in this check has passed already (a failure ends
+	// the check), or is still being checked further up, on a cycle without a
+	// loop head, where the old check never ended.  Without this the check
+	// visits a block once per path to the loop head, which is exponential in
+	// the number of consecutive conditionals in the loop.
+	if (visited.IndexOf(this) != -1)
+		return true;
+	visited.Push(this);
+
 	for (int i = mIns.Size() - 1; i >= 0; i--)
 	{
 		if ((mIns[i].mType == ASMIT_LDX || mIns[i].mType == ASMIT_STX) && mIns[i].mMode == ASMIM_ZERO_PAGE && mIns[i].mAddress == xreg)
@@ -48329,7 +48344,7 @@ bool NativeCodeBasicBlock::CheckLoopIndexXRegisters(NativeCodeBasicBlock* head, 
 
 	for (int i = 0; i < mEntryBlocks.Size(); i++)
 	{
-		if (!mEntryBlocks[i]->CheckLoopIndexXRegisters(head, xreg))
+		if (!mEntryBlocks[i]->CheckLoopIndexXRegisters(head, xreg, visited))
 			return false;
 	}
 
@@ -48409,6 +48424,17 @@ bool NativeCodeBasicBlock::AbsoluteLocalRegisterValueReuse(void)
 
 bool NativeCodeBasicBlock::CheckLoopIndexYRegisters(NativeCodeBasicBlock* head, int yreg)
 {
+	ExpandingArray<NativeCodeBasicBlock*>	visited;
+	return CheckLoopIndexYRegisters(head, yreg, visited);
+}
+
+bool NativeCodeBasicBlock::CheckLoopIndexYRegisters(NativeCodeBasicBlock* head, int yreg, ExpandingArray<NativeCodeBasicBlock*>& visited)
+{
+	// As in CheckLoopIndexXRegisters.
+	if (visited.IndexOf(this) != -1)
+		return true;
+	visited.Push(this);
+
 	for (int i = mIns.Size() - 1; i >= 0; i--)
 	{
 		if ((mIns[i].mType == ASMIT_LDY || mIns[i].mType == ASMIT_STY) && mIns[i].mMode == ASMIM_ZERO_PAGE && mIns[i].mAddress == yreg)
@@ -48425,7 +48451,7 @@ bool NativeCodeBasicBlock::CheckLoopIndexYRegisters(NativeCodeBasicBlock* head, 
 
 	for (int i = 0; i < mEntryBlocks.Size(); i++)
 	{
-		if (!mEntryBlocks[i]->CheckLoopIndexYRegisters(head, yreg))
+		if (!mEntryBlocks[i]->CheckLoopIndexYRegisters(head, yreg, visited))
 			return false;
 	}
 

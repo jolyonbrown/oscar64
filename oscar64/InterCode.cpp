@@ -17258,6 +17258,12 @@ static bool CanMoveInstructionBeforePath(const ExpandingInterCodeBasicBlockPtrAr
 
 bool InterCodeBasicBlock::IsDirectLoopPathBlock(InterCodeBasicBlock* block)
 {
+	ExpandingArray<InterCodeBasicBlock*>	visited;
+	return IsDirectLoopPathBlock(block, visited);
+}
+
+bool InterCodeBasicBlock::IsDirectLoopPathBlock(InterCodeBasicBlock* block, ExpandingArray<InterCodeBasicBlock*>& visited)
+{
 	if (this == block)
 		return true;
 
@@ -17267,8 +17273,18 @@ bool InterCodeBasicBlock::IsDirectLoopPathBlock(InterCodeBasicBlock* block)
 	if (block->mEntryBlocks.Size() == 0)
 		return false;
 
+	// A block seen before in this search has been searched already without
+	// finding this block (a hit ends the search), or is still being searched
+	// further up, which happens only on a cycle without a loop head, where
+	// the old search never ended.  Without this check a failing search
+	// visits a block once per path to it, which is exponential in the number
+	// of consecutive conditionals in the loop body.
+	if (visited.IndexOf(block) != -1)
+		return false;
+	visited.Push(block);
+
 	for (int i = 0; i < block->mEntryBlocks.Size(); i++)
-		if (IsDirectLoopPathBlock(block->mEntryBlocks[i]))
+		if (IsDirectLoopPathBlock(block->mEntryBlocks[i], visited))
 			return true;
 
 	return false;
@@ -17307,6 +17323,15 @@ bool InterCodeBasicBlock::CollectBlocksToDominator(InterCodeBasicBlock* dblock, 
 	if (mEntryBlocks.Size() == 0)
 		return false;
 
+	// body starts empty, so a block already in it was reached before in
+	// this walk and has been collected with everything behind it (a failure
+	// ends the walk), or is still being collected further up, on a cycle
+	// without a loop head, where the old walk never ended.  Without this
+	// check the walk visits and stores a block once per path to it, which
+	// is exponential in the number of consecutive conditionals between the
+	// two blocks.
+	if (body.IndexOf(this) != -1)
+		return true;
 	body.Push(this);
 
 	for (int i = 0; i < mEntryBlocks.Size(); i++)
