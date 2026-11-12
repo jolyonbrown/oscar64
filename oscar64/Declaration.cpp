@@ -2831,7 +2831,7 @@ bool Declaration::IsSubType(const Declaration* dec) const
 		return true;
 	else if (mType == DT_TYPE_BOOL || mType == DT_TYPE_FLOAT || mType == DT_TYPE_VOID)
 		return true;
-	else if (mType == DT_TYPE_STRUCT || mType == DT_TYPE_ENUM)
+	else if (mType == DT_TYPE_STRUCT || mType == DT_TYPE_ENUM || mType == DT_TYPE_UNION)
 	{
 		// Matching structure tags remain compatible while either declaration is incomplete.
 		if (mScope == dec->mScope || (mIdent == dec->mIdent &&
@@ -2851,8 +2851,6 @@ bool Declaration::IsSubType(const Declaration* dec) const
 
 		return false;
 	}
-	else if (mType == DT_TYPE_UNION)
-		return false;
 	else if (mType == DT_TYPE_ARRAY)
 		return mSize <= dec->mSize && mBase->IsSubType(dec->mBase);
 	else if (mType == DT_TYPE_FUNCTION)
@@ -2907,7 +2905,7 @@ bool Declaration::IsSameMutable(const Declaration* dec) const
 		return mIdent == dec->mIdent;
 	else if (mType == DT_TYPE_POINTER || mType == DT_TYPE_ARRAY)
 		return this->Stride() == dec->Stride() && mBase->IsSame(dec->mBase);
-	else if (mType == DT_TYPE_STRUCT)
+	else if (mType == DT_TYPE_STRUCT || mType == DT_TYPE_UNION)
 		return mScope == dec->mScope || (mIdent == dec->mIdent && mSize == dec->mSize);
 	else if (mType == DT_TYPE_FUNCTION)
 	{
@@ -2966,7 +2964,7 @@ bool Declaration::IsConstSame(const Declaration* dec) const
 		return mIdent == dec->mIdent;
 	else if (mType == DT_TYPE_POINTER || mType == DT_TYPE_ARRAY)
 		return this->Stride() == dec->Stride() && mBase->IsSame(dec->mBase);
-	else if (mType == DT_TYPE_STRUCT)
+	else if (mType == DT_TYPE_STRUCT || mType == DT_TYPE_UNION)
 		return mScope == dec->mScope || (mIdent == dec->mIdent && mSize == dec->mSize);
 	else if (mType == DT_TYPE_FUNCTION)
 	{
