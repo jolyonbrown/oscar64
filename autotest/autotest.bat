@@ -489,6 +489,12 @@ rem @echo off
 @call :test globalstoreordertest.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test unionptrconsttest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :test unionptroverloadtest.cpp
+@if %errorlevel% neq 0 goto :error
+
 @exit /b 0
 
 :error
