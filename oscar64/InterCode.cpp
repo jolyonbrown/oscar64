@@ -2380,9 +2380,13 @@ InterOperand InterCodeBasicBlock::LoadConstantOperand(const InterInstruction* in
 			cop.mIntConst = data[0] ? 1 : 0;
 		case IT_INT8:
 			cop.mIntConst = data[0];
+			if (!ins->mDst.IsPositive())
+				cop.mIntConst = ToTypedSigned(cop.mIntConst, IT_INT8);
 			break;
 		case IT_INT16:
 			cop.mIntConst = (int)data[0 * stride] | ((int)data[1 * stride] << 8);
+			if (!ins->mDst.IsPositive())
+				cop.mIntConst = ToTypedSigned(cop.mIntConst, IT_INT16);
 			break;
 		case IT_POINTER:
 		{
@@ -2429,7 +2433,9 @@ InterOperand InterCodeBasicBlock::LoadConstantOperand(const InterInstruction* in
 
 		} break;
 		case IT_INT32:
-			cop.mIntConst = (int)data[0 * stride] | ((int)data[1 * stride] << 8) | ((int)data[2 * stride] << 16) | ((int)data[3 * stride] << 24);
+			cop.mIntConst = (int)data[0 * stride] | ((int)data[1 * stride] << 8) | ((int)data[2 * stride] << 16) | ((uint32)data[3 * stride] << 24);
+			if (!ins->mDst.IsPositive())
+				cop.mIntConst = ToTypedSigned(cop.mIntConst, IT_INT32);
 			break;
 		case IT_FLOAT:
 		{
@@ -2481,9 +2487,13 @@ void InterCodeBasicBlock::LoadConstantFold(InterInstruction* ins, InterInstructi
 		ins->mConst.mIntConst = lobj->at(offset + 0 * stride) ? 1 : 0;
 	case IT_INT8:
 		ins->mConst.mIntConst = lobj->at(offset + 0 * stride);
+		if (!ins->mDst.IsPositive())
+			ins->mConst.mIntConst = ToTypedSigned(ins->mConst.mIntConst, IT_INT8);
 		break;
 	case IT_INT16:
 		ins->mConst.mIntConst = lobj->at(offset + 0 * stride) | (lobj->at(offset + 1 * stride) << 8);
+		if (!ins->mDst.IsPositive())
+			ins->mConst.mIntConst = ToTypedSigned(ins->mConst.mIntConst, IT_INT16);
 		break;
 	case IT_POINTER:
 	{
@@ -2530,7 +2540,9 @@ void InterCodeBasicBlock::LoadConstantFold(InterInstruction* ins, InterInstructi
 
 	} break;
 	case IT_INT32:
-		ins->mConst.mIntConst = lobj->at(offset + 0 * stride) | (lobj->at(offset + 1 * stride) << 8) | (lobj->at(offset + 2 * stride) << 16) | (lobj->at(offset + 3 * stride) << 24);
+		ins->mConst.mIntConst = lobj->at(offset + 0 * stride) | (lobj->at(offset + 1 * stride) << 8) | (lobj->at(offset + 2 * stride) << 16) | ((uint32)lobj->at(offset + 3 * stride) << 24);
+		if (!ins->mDst.IsPositive())
+			ins->mConst.mIntConst = ToTypedSigned(ins->mConst.mIntConst, IT_INT32);
 		break;
 	case IT_FLOAT:
 	{
@@ -16183,6 +16195,8 @@ bool InterCodeBasicBlock::LoadStoreForwarding(const GrowingInstructionPtrArray& 
 								int64	v = 0;
 								for (int j = 0; j < InterTypeSize[ins->mDst.mType]; j++)
 									v = (v << 8) | (cins->mSrc[0].mIntConst & 0xff);
+								if ((ins->mDst.mType == IT_INT8 || ins->mDst.mType == IT_INT16 || ins->mDst.mType == IT_INT32) && !ins->mDst.IsPositive())
+									v = ToTypedSigned(v, ins->mDst.mType);
 
 								ins->mCode = IC_CONSTANT;
 								ins->mConst.mType = ins->mDst.mType;
