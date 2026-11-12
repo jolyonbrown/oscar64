@@ -17081,8 +17081,8 @@ bool NativeCodeBasicBlock::MergeBasicBlocks(void)
 					mIns.Push(mTrueJump->mIns[i]);
 				mBranch = mTrueJump->mBranch;
 				mFalseJump = mTrueJump->mFalseJump;
-				mTrueJump = mTrueJump->mTrueJump;
 				mNDataSet = mTrueJump->mNDataSet;
+				mTrueJump = mTrueJump->mTrueJump;
 				changed = true;
 			}
 
@@ -26632,8 +26632,34 @@ bool NativeCodeBasicBlock::ExpandADCToBranch(void)
 
 		if (changed && this == mProc->mExitBlock && mTrueJump)
 		{
+			// The trailing instructions, including the temporary RTS, have been
+			// moved into a new block behind the new branch.  That block took
+			// over the missing successors of the exit block, so hand the exit
+			// block role to the first reachable block without successors
+
+			NativeCodeBasicBlock* eblock = nullptr;
+			ExpandingArray<NativeCodeBasicBlock*>	eblocks;
+			eblocks.Push(mTrueJump);
+			if (mFalseJump)
+				eblocks.Push(mFalseJump);
+			for (int i = 0; i < eblocks.Size() && i < 16 && !eblock; i++)
+			{
+				NativeCodeBasicBlock* b = eblocks[i];
+				if (!b->mTrueJump && !b->mFalseJump)
+					eblock = b;
+				else
+				{
+					if (b->mTrueJump && b->mTrueJump != this && !eblocks.Contains(b->mTrueJump))
+						eblocks.Push(b->mTrueJump);
+					if (b->mFalseJump && b->mFalseJump != this && !eblocks.Contains(b->mFalseJump))
+						eblocks.Push(b->mFalseJump);
+				}
+			}
+			if (!eblock)
+				eblock = mTrueJump;
+
 			mLocked = false;
-			mProc->mExitBlock = mTrueJump;
+			mProc->mExitBlock = eblock;
 			mProc->mExitBlock->mLocked = true;
 		}
 
@@ -73170,6 +73196,7 @@ void NativeCodeProcedure::Compile(InterCodeProcedure* proc)
 
 	// Remove temporary RTS
 
+	assert(mExitBlock->mIns.Size() > 0 && mExitBlock->mIns.Last().mType == ASMIT_RTS);
 	mExitBlock->mIns.Pop();
 
 	int frameSpace = tempSave;
