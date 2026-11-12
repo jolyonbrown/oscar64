@@ -420,6 +420,12 @@ rem @echo off
 @call :test ptrinittest.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test scalarbraceinittest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :test scalarbraceinitcpp.cpp
+@if %errorlevel% neq 0 goto :error
+
 @call :test memberpointerarray.c
 @if %errorlevel% neq 0 goto :error
 
