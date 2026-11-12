@@ -2613,7 +2613,20 @@ Expression* Parser::ParseVarInitExpression(Expression* vexp, bool inner, Express
 	}
 	else		
 	{		
+		// The initializer for a scalar may be a single expression enclosed in braces
+		bool	braced = !prefix && ConsumeTokenIf(TK_OPEN_BRACE);
 		Expression* rexp = prefix ? prefix : ParseExpression(false);
+		if (braced)
+		{
+			if (ConsumeTokenIf(TK_COMMA) && mScanner->mToken != TK_CLOSE_BRACE)
+			{
+				mErrors->Error(mScanner->mLocation, EERR_CONSTANT_INITIALIZER, "Too many initializers for scalar");
+				do {
+					ParseExpression(false);
+				} while (ConsumeTokenIf(TK_COMMA) && mScanner->mToken != TK_CLOSE_BRACE);
+			}
+			ConsumeToken(TK_CLOSE_BRACE);
+		}
 		rexp = CoerceExpression(rexp, dtype);
 		exp = new Expression(rexp->mLocation, EX_INITIALIZATION);
 		exp->mToken = TK_ASSIGN;
@@ -2864,7 +2877,20 @@ Expression* Parser::ParseConstInitExpression(Declaration* dtype, bool inner)
 	}
 	else
 	{
+		// The initializer for a scalar may be a single expression enclosed in braces
+		bool	braced = ConsumeTokenIf(TK_OPEN_BRACE);
 		exp = ParseRExpression();
+		if (braced)
+		{
+			if (ConsumeTokenIf(TK_COMMA) && mScanner->mToken != TK_CLOSE_BRACE)
+			{
+				mErrors->Error(mScanner->mLocation, EERR_CONSTANT_INITIALIZER, "Too many initializers for scalar");
+				do {
+					ParseRExpression();
+				} while (ConsumeTokenIf(TK_COMMA) && mScanner->mToken != TK_CLOSE_BRACE);
+			}
+			ConsumeToken(TK_CLOSE_BRACE);
+		}
 		if (dtype->mType == DT_TYPE_POINTER && exp->mDecType && exp->mDecType->mType == DT_TYPE_ARRAY && exp->mType == EX_CONSTANT)
 		{
 			Declaration* ndec = new Declaration(exp->mDecValue->mLocation, DT_CONST_POINTER);
