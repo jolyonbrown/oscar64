@@ -3729,6 +3729,11 @@ InterCodeGenerator::ExValue InterCodeGenerator::TranslateExpression(Declaration*
 			vr = ToValue(proc, exp, block, inlineMapper, vr);
 			vr = Dereference(proc, exp, block, inlineMapper, vr, vr.mType->mType == DT_TYPE_ARRAY ? 1 : 0);
 
+			// A function designator compares as a pointer to the function
+			if (vl.mType->mType == DT_TYPE_FUNCTION)
+				vl = ExValue(vl.mType->BuildPointer(exp->mLocation), vl.mTemp);
+			if (vr.mType->mType == DT_TYPE_FUNCTION)
+				vr = ExValue(vr.mType->BuildPointer(exp->mLocation), vr.mTemp);
 
 			InterInstruction	*	ins = new InterInstruction(MapLocation(exp, inlineMapper), IC_RELATIONAL_OPERATOR);
 
