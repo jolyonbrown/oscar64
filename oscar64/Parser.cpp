@@ -944,6 +944,11 @@ Declaration* Parser::ParseBaseTypeDeclaration(uint64 flags, bool qualified, Decl
 		mScanner->NextToken();
 		return ParseBaseTypeDeclaration(flags, qualified);
 
+	case TK_REGISTER:
+		// Storage class hint only, has no effect on code generation
+		mScanner->NextToken();
+		return ParseBaseTypeDeclaration(flags, qualified);
+
 	case TK_LONG:
 		dec = new Declaration(mScanner->mLocation, DT_TYPE_INTEGER);
 		dec->mSize = 4;
@@ -8038,6 +8043,7 @@ Expression* Parser::ParseSimpleExpression(bool lhs, bool tid)
 	case TK_MEMMAP:
 	case TK_TYPENAME:
 	case TK_EXTERN:
+	case TK_REGISTER:
 		exp = ParseDeclarationExpression(nullptr);
 		break;
 
@@ -12496,6 +12502,7 @@ Expression* Parser::ParseStatement(void)
 		case TK_MEMMAP:
 		case TK_TYPENAME:
 		case TK_EXTERN:
+		case TK_REGISTER:
 			exp = CleanupExpression(ParseDeclarationExpression(nullptr));
 			break;
 
@@ -14913,6 +14920,7 @@ bool Parser::IsTypeToken(void)
 	case TK_DECLTYPE:
 	case TK_MEMMAP:
 	case TK_TYPENAME:
+	case TK_REGISTER:
 		return true;
 	case TK_IDENT:
 	{
@@ -14961,7 +14969,50 @@ void Parser::ParsePragma(void)
 	uint64 op = mScanner->mCompilerOptions;
 	mScanner->mCompilerOptions &= ~COPT_PETSCII;
 
-	if (mScanner->mToken == TK_IDENT)
+	if (mScanner->mToken == TK_REGISTER)
+	{
+		// The zero page register pragma shares its name with the register keyword
+		mScanner->NextToken();
+		ConsumeToken(TK_OPEN_PARENTHESIS);
+		if (mScanner->mToken == TK_IDENT)
+		{
+			const Ident* reg = mScanner->mTokenIdent;
+			int	index = 0;
+			mScanner->NextToken();
+
+			ConsumeToken(TK_COMMA);
+			Expression* exp = ParseRExpression();
+			if (exp->mType == EX_CONSTANT && exp->mDecValue->mType == DT_CONST_INTEGER && exp->mDecValue->mInteger >= 2 && exp->mDecValue->mInteger < 0x100)
+				index = int(exp->mDecValue->mInteger);
+			else
+				mErrors->Error(mScanner->mLocation, EERR_PRAGMA_PARAMETER, "Integer number for start expected");
+
+			if (!strcmp(reg->mString, "__tmpy"))
+				BC_REG_WORK_Y = index;
+			else if (!strcmp(reg->mString, "__tmp"))
+				BC_REG_WORK = index;
+			else if (!strcmp(reg->mString, "__ip"))
+				BC_REG_IP = index;
+			else if (!strcmp(reg->mString, "__accu"))
+				BC_REG_ACCU = index;
+			else if (!strcmp(reg->mString, "__addr"))
+				BC_REG_ADDR = index;
+			else if (!strcmp(reg->mString, "__sp"))
+				BC_REG_STACK = index;
+			else if (!strcmp(reg->mString, "__fp"))
+				BC_REG_LOCALS = index;
+			else if (!strcmp(reg->mString, "__sregs"))
+				BC_REG_TMP_SAVED = index;
+			else if (!strcmp(reg->mString, "__regs"))
+				BC_REG_TMP = index;
+			else
+				mErrors->Error(mScanner->mLocation, EERR_PRAGMA_PARAMETER, "Unknown register name");
+		}
+		else
+			mErrors->Error(mScanner->mLocation, EERR_PRAGMA_PARAMETER, "Register name expected");
+		ConsumeToken(TK_CLOSE_PARENTHESIS);
+	}
+	else if (mScanner->mToken == TK_IDENT)
 	{
 		if (!strcmp(mScanner->mTokenIdent->mString, "message"))
 		{
@@ -15110,48 +15161,6 @@ void Parser::ParsePragma(void)
 					mErrors->Error(mScanner->mLocation, EERR_OBJECT_NOT_FOUND, "Startup function not found");
 				mScanner->NextToken();
 			}
-			ConsumeToken(TK_CLOSE_PARENTHESIS);
-		}
-		else if (!strcmp(mScanner->mTokenIdent->mString, "register"))
-		{
-			mScanner->NextToken();
-			ConsumeToken(TK_OPEN_PARENTHESIS);
-			if (mScanner->mToken == TK_IDENT)
-			{
-				const Ident* reg = mScanner->mTokenIdent;
-				int	index = 0;
-				mScanner->NextToken();
-
-				ConsumeToken(TK_COMMA);
-				Expression* exp = ParseRExpression();
-				if (exp->mType == EX_CONSTANT && exp->mDecValue->mType == DT_CONST_INTEGER && exp->mDecValue->mInteger >= 2 && exp->mDecValue->mInteger < 0x100)
-					index = int(exp->mDecValue->mInteger);
-				else
-					mErrors->Error(mScanner->mLocation, EERR_PRAGMA_PARAMETER, "Integer number for start expected");
-
-				if (!strcmp(reg->mString, "__tmpy"))
-					BC_REG_WORK_Y = index;
-				else if (!strcmp(reg->mString, "__tmp"))
-					BC_REG_WORK = index;
-				else if (!strcmp(reg->mString, "__ip"))
-					BC_REG_IP = index;
-				else if (!strcmp(reg->mString, "__accu"))
-					BC_REG_ACCU = index;
-				else if (!strcmp(reg->mString, "__addr"))
-					BC_REG_ADDR = index;
-				else if (!strcmp(reg->mString, "__sp"))
-					BC_REG_STACK = index;
-				else if (!strcmp(reg->mString, "__fp"))
-					BC_REG_LOCALS = index;
-				else if (!strcmp(reg->mString, "__sregs"))
-					BC_REG_TMP_SAVED = index;
-				else if (!strcmp(reg->mString, "__regs"))
-					BC_REG_TMP = index;
-				else
-					mErrors->Error(mScanner->mLocation, EERR_PRAGMA_PARAMETER, "Unknown register name");
-			}
-			else
-				mErrors->Error(mScanner->mLocation, EERR_PRAGMA_PARAMETER, "Register name expected");
 			ConsumeToken(TK_CLOSE_PARENTHESIS);
 		}
 		else if (!strcmp(mScanner->mTokenIdent->mString, "bytecode"))
