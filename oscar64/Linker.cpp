@@ -468,7 +468,7 @@ bool Linker::Forwards(LinkerObject* pobj, LinkerObject* lobj)
 {
 	if (lobj->mAlignment == 1 && pobj && lobj->mType == LOT_NATIVE_CODE && pobj->mType == LOT_NATIVE_CODE && lobj->mSection == pobj->mSection)
 	{
-		if (pobj->mSize >= 3 && pobj->mData[pobj->mSize - 3] == 0x4c && pobj->mReferences.Size() > 0)
+		if (pobj->mSize >= 3 && pobj->mData[pobj->mSize - 3] == 0x4c && pobj->mReferences.Size() > 0 && !(pobj->mSize == 3 && (pobj->mFlags & LOBJF_FUNC_VARIABLE)))
 		{
 			int i = 0;
 			while (i < pobj->mReferences.Size() && pobj->mReferences[i]->mOffset != pobj->mSize - 2)
@@ -558,13 +558,13 @@ void Linker::CombineSameConst(void)
 			while (dobj->mMapID != mObjects[dobj->mMapID]->mMapID)
 				dobj->mMapID = mObjects[dobj->mMapID]->mMapID;
 
-			if ((dobj->mFlags & LOBJF_REFERENCED) && (dobj->mFlags & LOBJF_CONST) && dobj->mMapID == dobj->mID && dobj->mType != LOT_INLAY)
+			if ((dobj->mFlags & LOBJF_REFERENCED) && (dobj->mFlags & LOBJF_CONST) && !(dobj->mFlags & LOBJF_FUNC_VARIABLE) && dobj->mMapID == dobj->mID && dobj->mType != LOT_INLAY)
 			{
 				for (int j = i + 1; j < mObjects.Size(); j++)
 				{
 					LinkerObject* sobj(mObjects[j]);
 
-					if ((sobj->mFlags & LOBJF_REFERENCED) && (sobj->mFlags & LOBJF_CONST) && sobj->mMapID == sobj->mID && sobj->mType != LOT_INLAY)
+					if ((sobj->mFlags & LOBJF_REFERENCED) && (sobj->mFlags & LOBJF_CONST) && !(sobj->mFlags & LOBJF_FUNC_VARIABLE) && sobj->mMapID == sobj->mID && sobj->mType != LOT_INLAY)
 					{
 						if (dobj->mSize == sobj->mSize && dobj->mSection == sobj->mSection && dobj->mReferences.Size() == sobj->mReferences.Size())
 						{

@@ -181,6 +181,8 @@ static const uint32 LOBJF_LOCAL_USED = 0x02000000;
 static const uint32 LOBJF_NO_GLOBAL_STORES = 0x04000000;
 static const uint32 LOBJF_NO_GLOBAL_LOADS = 0x08000000;
 
+static const uint32 LOBJF_FUNC_VARIABLE = 0x10000000;
+
 class LinkerObjectRange
 {
 public:
