@@ -2672,10 +2672,21 @@ InterCodeGenerator::ExValue InterCodeGenerator::TranslateExpression(Declaration*
 				return ExValue(exp->mDecType->mBase, ins->mDst.mTemp, ref + 1);
 			else if (exp->mDecType->IsFunctionType())
 			{
-				if (exp->mDecValue->mType == DT_VARIABLE_REF && exp->mDecValue->mBase->mBase->mType == DT_TYPE_ARRAY)
-					return ExValue(exp->mDecValue->mBase->mBase->mBase, ins->mDst.mTemp, ref, lbits, lshift);
-				else
-					return ExValue(exp->mDecValue->mBase, ins->mDst.mTemp, ref, lbits, lshift);
+				Declaration* vdec = exp->mDecValue;
+				if (vdec->mType == DT_VARIABLE_REF)
+					vdec = vdec->RefDeclaration();
+				Declaration* ftype = exp->mDecType;
+				if (vdec)
+				{
+					ftype = vdec->mBase;
+					while (ftype->mType == DT_TYPE_ARRAY)
+						ftype = ftype->mBase;
+					if (exp->mDecType->mFlags & DTF_CONST)
+						ftype = ftype->ToConstType();
+					if (exp->mDecType->mFlags & DTF_VOLATILE)
+						ftype = ftype->ToVolatileType();
+				}
+				return ExValue(ftype, ins->mDst.mTemp, ref, lbits, lshift);
 			}
 			else
 				return ExValue(exp->mDecType, ins->mDst.mTemp, ref, lbits, lshift);
@@ -3071,7 +3082,14 @@ InterCodeGenerator::ExValue InterCodeGenerator::TranslateExpression(Declaration*
 			if (exp->mDecType->IsReference())
 				return ExValue(exp->mDecType->mBase, ains->mDst.mTemp, 2);
 			else if (exp->mDecType->IsFunctionType())
-				return ExValue(exp->mDecValue->mBase, ains->mDst.mTemp, 1, exp->mDecValue->mBits, exp->mDecValue->mShift);
+			{
+				Declaration* ftype = exp->mDecValue->mBase;
+				if (exp->mDecType->mFlags & DTF_CONST)
+					ftype = ftype->ToConstType();
+				if (exp->mDecType->mFlags & DTF_VOLATILE)
+					ftype = ftype->ToVolatileType();
+				return ExValue(ftype, ains->mDst.mTemp, 1, exp->mDecValue->mBits, exp->mDecValue->mShift);
+			}
 			else
 				return ExValue(exp->mDecType, ains->mDst.mTemp, 1, exp->mDecValue->mBits, exp->mDecValue->mShift);
 		}

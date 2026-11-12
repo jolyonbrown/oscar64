@@ -397,6 +397,7 @@ public:
 	Declaration* BuildRValueRef(const Location& loc);
 	Declaration* BuildConstRValueRef(const Location& loc);
 	Declaration* NonRefBase(void);
+	Declaration* RefDeclaration(void);
 	Declaration* BuildArrayPointer(void);
 	Declaration* BuildAddressOfPointer(void);
 	Declaration* DeduceAuto(Declaration* dec);

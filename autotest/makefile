@@ -2,7 +2,7 @@ SRCS=$(filter-out ambiguousoverload_trigger.c constconversionordertest_impl.c co
 EXES=$(patsubst %.c,%,$(SRCS))
 EXES:=$(patsubst %.cpp,%,$(EXES))
 
-all: $(EXES) warningstackconstraints enumrangeconstraints c23enumconstraints diskimaged64test diskimagefulltest diskimaged71test diskimaged81test
+all: $(EXES) warningstackconstraints enumrangeconstraints c23enumconstraints funcptrmemberconstconstraints diskimaged64test diskimagefulltest diskimaged71test diskimaged81test
 
 .PHONY: warningstackconstraints
 warningstackconstraints: warningstacktest.c warningstacktest.h
@@ -70,6 +70,21 @@ c23enumconstraints: c23enumtest.c
 					exit 1; \
 				fi; \
 			done; \
+		done; \
+	done
+
+.PHONY: funcptrmemberconstconstraints
+funcptrmemberconstconstraints: funcptrmemberconsttest.c
+	@set -e; \
+	for mode in -n -bc; do \
+		for selector in GLOBAL LOCAL STATIC_LOCAL POINTER ARRAY NESTED ARRAY_OF_STRUCTS; do \
+			status=0; \
+			output="$$($(OSCAR64_CC) -g $$mode -dFUNCPTR_CONST_$$selector -o=funcptrmemberconstinvalid.prg $< 2>&1)" || status=$$?; \
+			if [ $$status -ne 20 ] || ! printf '%s\n' "$$output" | grep -Fq 'error 3014: Cannot assign to const type'; then \
+				printf '%s\n' "$$output"; \
+				printf 'Expected const function pointer member diagnostic for %s %s and exit status 20, got %s\n' "$$mode" "$$selector" "$$status"; \
+				exit 1; \
+			fi; \
 		done; \
 	done
 
@@ -252,6 +267,23 @@ funcvaropt: funcvaropt.c
 	$(OSCAR64_CC) -ea -g -O2 -n $<
 	$(OSCAR64_CC) -ea -g -O0 -n $<
 	$(OSCAR64_CC) -ea -g -Os -n $<
+	$(OSCAR64_CC) -ea -g -O3 -n $<
+	$(OSCAR64_CC) -ea -g -Ofp -n $<
+	$(OSCAR64_CC) -ea -g -O2 -Ofp -n $<
+	$(OSCAR64_CC) -ea -g -O0 -Ofp -n $<
+	$(OSCAR64_CC) -ea -g -Os -Ofp -n $<
+	$(OSCAR64_CC) -ea -g -O3 -Ofp -n $<
+
+funcptrmembertest: funcptrmembertest.c
+	$(OSCAR64_CC) -ea -g -bc $<
+	$(OSCAR64_CC) -ea -g -n $<
+	$(OSCAR64_CC) -ea -g -O2 -bc $<
+	$(OSCAR64_CC) -ea -g -O2 -n $<
+	$(OSCAR64_CC) -ea -g -O0 -bc $<
+	$(OSCAR64_CC) -ea -g -O0 -n $<
+	$(OSCAR64_CC) -ea -g -Os -bc $<
+	$(OSCAR64_CC) -ea -g -Os -n $<
+	$(OSCAR64_CC) -ea -g -O3 -bc $<
 	$(OSCAR64_CC) -ea -g -O3 -n $<
 	$(OSCAR64_CC) -ea -g -Ofp -n $<
 	$(OSCAR64_CC) -ea -g -O2 -Ofp -n $<

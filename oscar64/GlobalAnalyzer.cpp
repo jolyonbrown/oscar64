@@ -1046,6 +1046,46 @@ Declaration * GlobalAnalyzer::Analyze(Expression* exp, Declaration* procDec, uin
 				vdec->mFlags |= DTF_ANALYZED;
 			}
 		}
+
+		if (exp->mDecValue->mType == DT_VARIABLE_REF)
+		{
+			// function pointer, or array of function pointers, in a global aggregate:
+			// return its type rather than the aggregate, so a call through it (also
+			// through a variable index into the array) is registered. Prefer the type
+			// of the resolved member, which the function pointer optimizer may have
+			// rewritten, with as many array levels as the expression still has
+			Declaration* etype = exp->mDecType;
+			int edepth = 0;
+			while (etype->mType == DT_TYPE_ARRAY)
+			{
+				etype = etype->mBase;
+				edepth++;
+			}
+
+			if (etype->IsFunctionType())
+			{
+				Declaration* mdec = exp->mDecValue->RefDeclaration();
+				if (mdec)
+				{
+					Declaration* mtype = mdec->mBase;
+					int mdepth = 0;
+					for (Declaration* t = mtype; t->mType == DT_TYPE_ARRAY; t = t->mBase)
+						mdepth++;
+					while (mdepth > edepth)
+					{
+						mtype = mtype->mBase;
+						mdepth--;
+					}
+					Declaration* ftype = mtype;
+					while (ftype->mType == DT_TYPE_ARRAY)
+						ftype = ftype->mBase;
+					if (mdepth == edepth && ftype->IsFunctionType())
+						return mtype;
+				}
+				return exp->mDecType;
+			}
+		}
+
 		return vdec;
 	}
 	case EX_INITIALIZATION:
