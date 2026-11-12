@@ -342,6 +342,9 @@ rem @echo off
 @call :test functionpointerparamtest.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test loopconditionpathtest.c
+@if %errorlevel% neq 0 goto :error
+
 @call :test functionpointercasttest.c
 @if %errorlevel% neq 0 goto :error
 

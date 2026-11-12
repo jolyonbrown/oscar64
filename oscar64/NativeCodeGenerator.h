@@ -752,7 +752,9 @@ public:
 	bool IndexXYValueForwarding(int xreg, int xoffset, int xvalue, int yreg, int yoffset, int yvalue);
 	bool ReduceIndexXYZeroShuffle(NativeCodeBasicBlock* from, int xreg, int yreg);
 	bool CheckLoopIndexXRegisters(NativeCodeBasicBlock* head, int xreg);
+	bool CheckLoopIndexXRegisters(NativeCodeBasicBlock* head, int xreg, ExpandingArray<NativeCodeBasicBlock*>& visited);
 	bool CheckLoopIndexYRegisters(NativeCodeBasicBlock* head, int yreg);
+	bool CheckLoopIndexYRegisters(NativeCodeBasicBlock* head, int yreg, ExpandingArray<NativeCodeBasicBlock*>& visited);
 	bool AbsoluteLocalRegisterValueReuse(void);
 
 	void MarkLocalUsedLinkerObjects(void);
