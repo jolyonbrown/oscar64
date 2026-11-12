@@ -462,6 +462,12 @@ rem @echo off
 @call :test mixedwidthternary.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test nestedternaryjumptest.c
+@if %errorlevel% neq 0 goto :error
+
+@call :test ternaryexitblocktest.c
+@if %errorlevel% neq 0 goto :error
+
 @call :test signedbytestructreturn.c
 @if %errorlevel% neq 0 goto :error
 
