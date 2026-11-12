@@ -3741,11 +3741,37 @@ InterCodeGenerator::ExValue InterCodeGenerator::TranslateExpression(Declaration*
 				{
 					if ((mCompilerOptions & COPT_CPLUSPLUS) || exp->mLeft->mType != EX_CONSTANT || exp->mLeft->mDecValue->mInteger != 0)
 						mErrors->Error(exp->mLocation, EERR_INCOMPATIBLE_TYPES, "Cannot compare integer and pointer");
+					else
+					{
+						// Integer constant 0 compared with a pointer is a null pointer constant
+						dtype = vr.mType;
+
+						InterInstruction* zins = new InterInstruction(MapLocation(exp, inlineMapper), IC_CONSTANT);
+						zins->mDst.mType = IT_POINTER;
+						zins->mDst.mTemp = proc->AddTemporary(IT_POINTER);
+						zins->mConst.mType = IT_POINTER;
+						zins->mConst.mMemory = IM_ABSOLUTE;
+						zins->mConst.mIntConst = 0;
+						block->Append(zins);
+						vl = ExValue(dtype, zins->mDst.mTemp);
+					}
 				}
 				else if (vr.mType->IsIntegerType())
 				{
 					if ((mCompilerOptions & COPT_CPLUSPLUS) || exp->mRight->mType != EX_CONSTANT || exp->mRight->mDecValue->mInteger != 0)
 						mErrors->Error(exp->mLocation, EERR_INCOMPATIBLE_TYPES, "Cannot compare integer and pointer");
+					else
+					{
+						// Integer constant 0 compared with a pointer is a null pointer constant
+						InterInstruction* zins = new InterInstruction(MapLocation(exp, inlineMapper), IC_CONSTANT);
+						zins->mDst.mType = IT_POINTER;
+						zins->mDst.mTemp = proc->AddTemporary(IT_POINTER);
+						zins->mConst.mType = IT_POINTER;
+						zins->mConst.mMemory = IM_ABSOLUTE;
+						zins->mConst.mIntConst = 0;
+						block->Append(zins);
+						vr = ExValue(dtype, zins->mDst.mTemp);
+					}
 				}
 				else if ((vl.mType->mType == DT_TYPE_POINTER || vl.mType->mType == DT_TYPE_ARRAY) && (vr.mType->mType == DT_TYPE_POINTER || vr.mType->mType == DT_TYPE_ARRAY))
 				{
@@ -5267,6 +5293,8 @@ InterCodeGenerator::ExValue InterCodeGenerator::TranslateExpression(Declaration*
 			zins->mDst.mTemp = proc->AddTemporary(zins->mDst.mType);
 			zins->mConst.mType = zins->mDst.mType;
 			zins->mConst.mIntConst = 0;
+			if (zins->mDst.mType == IT_POINTER)
+				zins->mConst.mMemory = IM_ABSOLUTE;
 			block->Append(zins);
 
 			InterInstruction	*	ins = new InterInstruction(MapLocation(exp, inlineMapper), IC_RELATIONAL_OPERATOR);

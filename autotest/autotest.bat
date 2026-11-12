@@ -426,6 +426,9 @@ rem @echo off
 @call :test ptrarraycmptest.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test nullptrcmptest.c
+@if %errorlevel% neq 0 goto :error
+
 @call :test cplxstructtest.c
 @if %errorlevel% neq 0 goto :error
 
