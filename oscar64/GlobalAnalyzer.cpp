@@ -1383,6 +1383,7 @@ Declaration * GlobalAnalyzer::Analyze(Expression* exp, Declaration* procDec, uin
 		break;
 	case EX_TYPECAST:
 		ldec = Analyze(exp->mLeft, procDec, flags);
+		RegisterProc(ldec);
 		return exp->mDecType;
 
 	case EX_LOGICAL_AND:

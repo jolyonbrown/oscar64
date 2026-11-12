@@ -6528,7 +6528,10 @@ InterCodeProcedure* InterCodeGenerator::TranslateProcedure(InterCodeModule * mod
 		proc->mInterruptCalled = true;
 
 	if (dec->mFlags & DTF_FUNC_VARIABLE)
+	{
 		proc->mFuncVariable = true;
+		proc->mLinkerObject->mFlags |= LOBJF_FUNC_VARIABLE;
+	}
 
 	if ((dec->mFlags & DTF_DYNSTACK) || (dec->mFlags & DTF_FUNC_RECURSIVE))
 		proc->mDynamicStack = true;
