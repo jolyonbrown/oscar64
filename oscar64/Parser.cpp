@@ -10761,7 +10761,20 @@ Expression* Parser::ParseConditionalExpression(bool lhs)
 		Expression* texp = new Expression(mScanner->mLocation, EX_SEQUENCE);
 		nexp->mRight = texp;
 
-		texp->mLeft = ParseLogicOrExpression(false);
+		// The middle operand is a full expression, including nested ?:, assignment and comma.
+		// Commas become EX_COMMA nodes, not EX_LIST, so that a constant folded ?: does
+		// not leave an argument list where a single argument is expected
+		texp->mLeft = ParseExpression(false);
+		while (mScanner->mToken == TK_COMMA)
+		{
+			Expression* cexp = new Expression(mScanner->mLocation, EX_COMMA);
+			cexp->mToken = TK_COMMA;
+			mScanner->NextToken();
+			cexp->mLeft = texp->mLeft;
+			cexp->mRight = ParseExpression(false);
+			cexp->mDecType = cexp->mRight->mDecType;
+			texp->mLeft = cexp;
+		}
 		ConsumeToken(TK_COLON);
 		texp->mRight = ParseConditionalExpression(false);
 		
