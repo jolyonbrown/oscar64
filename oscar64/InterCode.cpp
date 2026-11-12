@@ -2055,6 +2055,19 @@ static void ConversionConstantFold(InterInstruction * ins, const InterOperand & 
 	}
 }
 
+// Truth value of a constant operand used as a branch condition, as in
+// CheckIsConstBranch: a pointer into a global or to a procedure is not
+// null, whatever its offset.
+static bool OperandConstantIsTrue(const InterOperand& op)
+{
+	if (op.mType == IT_FLOAT)
+		return op.mFloatConst != 0;
+	else if (op.mType == IT_POINTER)
+		return op.mMemory != IM_ABSOLUTE || op.mIntConst != 0;
+	else
+		return op.mIntConst != 0;
+}
+
 static InterOperand OperandConstantFolding(InterOperator oper, InterOperand op1, InterOperand op2)
 {
 	InterOperand	dop;
@@ -2419,7 +2432,7 @@ InterOperand InterCodeBasicBlock::LoadConstantOperand(const InterInstruction* in
 
 				cop.mLinkerObject = lobj->mReferences[i]->mRefObject;
 				cop.mIntConst = lobj->mReferences[i]->mRefOffset;
-				cop.mOperandSize = ins->mConst.mLinkerObject->mSize;
+				cop.mOperandSize = cop.mLinkerObject->mSize;
 			}
 			else
 			{
@@ -21333,7 +21346,7 @@ void InterCodeBasicBlock::ConstInnerLoopOptimization(void)
 								break;
 
 							case IC_BRANCH:
-								block = vars[ins->mSrc[0].mTemp].mIntConst ? block->mTrueJump : block->mFalseJump;
+								block = OperandConstantIsTrue(vars[ins->mSrc[0].mTemp]) ? block->mTrueJump : block->mFalseJump;
 								ni = 0;
 								if (!body.Contains(block))
 									done = true;
@@ -21542,7 +21555,7 @@ void InterCodeBasicBlock::ConstSingleLoopOptimization(void)
 						}	break;
 
 						case IC_BRANCH:
-							if ((vars[ins->mSrc[0].mTemp].mIntConst ? mTrueJump : mFalseJump) != this)
+							if ((OperandConstantIsTrue(vars[ins->mSrc[0].mTemp]) ? mTrueJump : mFalseJump) != this)
 								done = true;
 							break;
 						}
