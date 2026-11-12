@@ -1363,6 +1363,9 @@ Declaration* GlobalOptimizer::Analyze(Expression* exp, Declaration* procDec, uin
 	case EX_RELATIONAL:
 		ldec = Analyze(exp->mLeft, procDec, flags);
 		rdec = Analyze(exp->mRight, procDec, flags);
+		// A compared function is a function pointer value, keep its type
+		RegisterProc(ldec);
+		RegisterProc(rdec);
 		return TheBoolTypeDeclaration;
 
 	case EX_PREINCDEC:
