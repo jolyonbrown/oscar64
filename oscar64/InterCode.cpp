@@ -1048,6 +1048,14 @@ static bool SameMemAndSize(const InterOperand& op, const InterInstruction* ins)
 		return false;
 }
 
+// A copy of a block of memory onto itself. It leaves the memory unchanged, so
+// there is nothing to forward from it, and forwarding through it would
+// replace an address by itself and report a change on every pass.
+static bool IsSelfCopy(const InterInstruction* ins)
+{
+	return ins->mCode == IC_COPY && ins->mSrc[0].mStride == ins->mSrc[1].mStride && SameMem(ins->mSrc[0], ins->mSrc[1]);
+}
+
 static bool SameInstruction(const InterInstruction* ins1, const InterInstruction* ins2)
 {
 	if (ins1->mCode == ins2->mCode && ins1->mNumOperands == ins2->mNumOperands)
@@ -5419,8 +5427,9 @@ bool InterInstruction::RemoveUnusedResultInstructions(InterInstruction* pre, Num
 
 		changed = true;
 	}
-	else if (mCode == IC_COPY && !mVolatile && mSrc[0].mTemp < 0 && mSrc[1].mTemp < 0 && mSrc[0].mMemory == mSrc[1].mMemory &&
-		mSrc[0].mVarIndex == mSrc[1].mVarIndex && mSrc[0].mLinkerObject == mSrc[1].mLinkerObject && mSrc[0].mIntConst == mSrc[1].mIntConst)
+	else if (mCode == IC_COPY && !mVolatile && (mSrc[0].mTemp < 0 && mSrc[1].mTemp < 0 && mSrc[0].mMemory == mSrc[1].mMemory &&
+		mSrc[0].mVarIndex == mSrc[1].mVarIndex && mSrc[0].mLinkerObject == mSrc[1].mLinkerObject && mSrc[0].mIntConst == mSrc[1].mIntConst ||
+		mSrc[0].mTemp == mSrc[1].mTemp && IsSelfCopy(this)))
 	{
 		mNumOperands = 0;
 		mDst.mTemp = -1;
@@ -8710,7 +8719,8 @@ bool InterCodeBasicBlock::PropagateVariableCopy(const GrowingInstructionPtrArray
 				if (!ins->mVolatile)
 				{
 					ltemps.SetSize(j);
-					ltemps.Push(ins);
+					if (!IsSelfCopy(ins))
+						ltemps.Push(ins);
 				}
 				break;
 
@@ -16305,6 +16315,8 @@ bool InterCodeBasicBlock::LoadStoreForwarding(const GrowingInstructionPtrArray& 
 				else if (!ins->mVolatile && ins->mSrc[1].mTemp < 0 && ins->mSrc[1].mStride == 1)
 					nins = ins;
 #endif
+				if (nins && IsSelfCopy(nins))
+					nins = nullptr;
 			}
 			else if (ins->mCode == IC_FILL)
 			{
