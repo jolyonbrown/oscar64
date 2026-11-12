@@ -890,9 +890,9 @@ bool SourceFile::DropSource(void)
 		return false;
 }
 
-bool Preprocessor::NextLine(void)
+bool Preprocessor::NextLine(bool append)
 {
-	ptrdiff_t	s = 0;
+	ptrdiff_t	s = append ? strlen(mLine) : 0;
 	while (s < 32768 && mSource->ReadLine(mLine + s, 32768 - s))
 	{
 		mLocation.mLine++;

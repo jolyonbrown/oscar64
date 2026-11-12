@@ -808,11 +808,52 @@ void Scanner::NextPreToken(void)
 				}
 
 				int		slen = mOffset;
-				bool	quote = false;
+				char	quote = 0;
 				while (mLine[slen] && (quote || mLine[slen] != '/' || mLine[slen + 1] != '/'))
 				{
-					if (mLine[slen] == '"')
-						quote = !quote;
+					if (quote)
+					{
+						// inside a string or character constant: skip escaped characters
+						if (mLine[slen] == '\\' && mLine[slen + 1])
+							slen++;
+						else if (mLine[slen] == quote)
+							quote = 0;
+					}
+					else if (mLine[slen] == '"' || mLine[slen] == '\'')
+						quote = mLine[slen];
+					else if (mLine[slen] == '/' && mLine[slen + 1] == '*')
+					{
+						// A block comment belongs to the directive up to its end, so one
+						// still open at the end of the line continues the directive on
+						// the next line
+						slen += 2;
+						int		ctext = slen;
+						while (mLine[slen] != '*' || mLine[slen + 1] != '/')
+						{
+							if (mLine[slen])
+								slen++;
+							else if (mLine != mPreprocessor->mLine)
+							{
+								Error("Multiline comment not closed");
+								break;
+							}
+							else
+							{
+								// Drop the comment text read so far, so that a long
+								// comment cannot fill the line buffer
+								mPreprocessor->mLine[ctext] = 0;
+								slen = ctext;
+								if (!mPreprocessor->NextLine(true) || !mLine[slen])
+								{
+									Error("Multiline comment not closed");
+									break;
+								}
+							}
+						}
+						if (!mLine[slen])
+							break;
+						slen++;
+					}
 					slen++;
 				}
 

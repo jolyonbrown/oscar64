@@ -104,7 +104,7 @@ public:
 	uint64		mCompilerOptions;
 
 	void AddPath(const char* path);
-	bool NextLine(void);
+	bool NextLine(bool append = false);
 
 	bool OpenSource(const char* reason, const char* name, bool local);
 	bool CloseSource(void);
