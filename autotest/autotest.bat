@@ -489,6 +489,9 @@ rem @echo off
 @call :test globalstoreordertest.c
 @if %errorlevel% neq 0 goto :error
 
+@call :test constinitsignedtest.c
+@if %errorlevel% neq 0 goto :error
+
 @exit /b 0
 
 :error
