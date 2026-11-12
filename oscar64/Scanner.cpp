@@ -1423,6 +1423,22 @@ void Scanner::NextSkipRawToken(void)
 				char	tkprep[128];
 				tkprep[0] = 0;
 
+				// Spaces and tabs may separate the '#' from the directive name.
+				// Skip them in the current text only, and not in assembler
+				// macro text, where "# x" is an immediate operand. A macro
+				// expansion ends in a blank (Macro::SetString), which is left
+				// in place, so a macro body ending in '#' does not pick up a
+				// name from the text that follows the expansion
+				bool	blanks = false;
+				if (!mAssemblerMode || !mMacroExpansion)
+				{
+					while ((mLine[mOffset] == ' ' || mLine[mOffset] == '\t') && !(mMacroExpansion && !mLine[mOffset + 1]))
+					{
+						mOffset++;
+						blanks = true;
+					}
+				}
+
 				while (NextChar() && IsAlpha(mTokenChar))
 				{
 					if (n < 127)
@@ -1430,7 +1446,7 @@ void Scanner::NextSkipRawToken(void)
 				}
 				tkprep[n] = 0;
 
-				if (n == 0 && mTokenChar == '#')
+				if (n == 0 && mTokenChar == '#' && !blanks)
 				{
 					NextChar();
 					mToken = TK_PREP_CONCAT;
@@ -1821,6 +1837,22 @@ void Scanner::NextRawToken(void)
 				char	tkprep[128];
 				tkprep[0] = 0;
 
+				// Spaces and tabs may separate the '#' from the directive name.
+				// Skip them in the current text only, and not in assembler
+				// macro text, where "# x" is an immediate operand. A macro
+				// expansion ends in a blank (Macro::SetString), which is left
+				// in place, so a macro body ending in '#' does not pick up a
+				// name from the text that follows the expansion
+				bool	blanks = false;
+				if (!mAssemblerMode || !mMacroExpansion)
+				{
+					while ((mLine[mOffset] == ' ' || mLine[mOffset] == '\t') && !(mMacroExpansion && !mLine[mOffset + 1]))
+					{
+						mOffset++;
+						blanks = true;
+					}
+				}
+
 				while (NextChar() && IsAlpha(mTokenChar))
 				{
 					if (n < 127)
@@ -1828,7 +1860,7 @@ void Scanner::NextRawToken(void)
 				}
 				tkprep[n] = 0;
 
-				if (n == 0 && mTokenChar == '#')
+				if (n == 0 && mTokenChar == '#' && !blanks)
 				{
 					NextChar();
 					mToken = TK_PREP_CONCAT;
